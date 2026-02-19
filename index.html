@@ -2,8 +2,71 @@
 <html>
 <head>
     <title>Simple Car Racing Game</title>
+    <style> body{
+            margin: 0;
+            overflow: hidden;
+            background: green;
+        }
+
+        #gameArea {
+            width: 400px;
+            height: 100vh;
+            margin: auto;
+            background: #333;
+            position: relative;
+            overflow: hidden;
+            border-left: 5px solid white;
+            border-right: 5px solid white;
+        }
+
+        .roadLine {
+            width: 10px;
+            height: 100px;
+            background: white;
+            position: absolute;
+            left: 195px;
+        }
+
+        #car {
+            width: 50px;
+            height: 100px;
+            background: red;
+            position: absolute;
+            bottom: 20px;
+            left: 175px;
+            border-radius: 10px;
+        }
+
+        .enemy {
+            width: 50px;
+            height: 100px;
+            background: yellow;
+            position: absolute;
+            top: -120px;
+            border-radius: 10px;
+        }
+
+        #score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+        }
+
+        #startScreen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+        }</style>
 </head>
-<link src="car.css">
 <body>
 
 <div id="gameArea">
@@ -121,3 +184,4 @@
 
 </body>
 </html>
+
