@@ -1,187 +1,299 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Simple Car Racing Game</title>
-    <style> body{
-            margin: 0;
-            overflow: hidden;
-            background: green;
-        }
+<title>Ultimate Train Runner</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body{
+  margin:0;
+  overflow:hidden;
+  font-family:Arial;
+  text-align:center;
+  background:linear-gradient(#87CEEB,#4fa3f7);
+  transition:0.5s;
+}
 
-        #gameArea {
-            width: 400px;
-            height: 100vh;
-            margin: auto;
-            background: #333;
-            position: relative;
-            overflow: hidden;
-            border-left: 5px solid white;
-            border-right: 5px solid white;
-        }
+#game{
+  width:360px;
+  height:600px;
+  margin:auto;
+  background:#222;
+  position:relative;
+  overflow:hidden;
+  border:5px solid black;
+}
 
-        .roadLine {
-            width: 10px;
-            height: 100px;
-            background: white;
-            position: absolute;
-            left: 195px;
-        }
+.track{
+  position:absolute;
+  width:4px;
+  height:100%;
+  background:white;
+}
 
-        #car {
-            width: 50px;
-            height: 100px;
-            background: red;
-            position: absolute;
-            bottom: 20px;
-            left: 175px;
-            border-radius: 10px;
-        }
+.track:nth-child(1){left:120px;}
+.track:nth-child(2){left:240px;}
 
-        .enemy {
-            width: 50px;
-            height: 100px;
-            background: yellow;
-            position: absolute;
-            top: -120px;
-            border-radius: 10px;
-        }
+.train{
+  width:70px;
+  height:110px;
+  position:absolute;
+  bottom:20px;
+  left:145px;
+  background:linear-gradient(red,darkred);
+  border-radius:15px;
+  box-shadow:0 0 20px red;
+}
 
-        #score {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            font-size: 20px;
-        }
+#controls{
+  position:absolute;
+  bottom:10px;
+  width:100%;
+  display:none; /* hidden by default */
+  justify-content:space-between;
+}
 
-        #startScreen {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
-            cursor: pointer;
-        }</style>
+#controls button{
+  font-size:25px;
+  padding:10px 20px;
+}
+
+.obstacle{
+  width:70px;
+  height:110px;
+  background:linear-gradient(yellow,orange);
+  position:absolute;
+  top:-120px;
+  border-radius:10px;
+}
+
+.coin{
+  width:30px;
+  height:30px;
+  background:gold;
+  border-radius:50%;
+  position:absolute;
+  top:-50px;
+  box-shadow:0 0 10px yellow;
+}
+
+.rain{
+  position:absolute;
+  width:2px;
+  height:15px;
+  background:lightblue;
+  animation:rainFall 0.5s linear infinite;
+}
+
+@keyframes rainFall{
+  from{transform:translateY(-20px);}
+  to{transform:translateY(600px);}
+}
+
+#gameOver{
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.8);
+  color:white;
+  display:none;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+}
+
+button{
+  padding:8px 15px;
+  margin-top:10px;
+  font-size:18px;
+  cursor:pointer;
+}
+</style>
 </head>
 <body>
 
-<div id="gameArea">
-    <div id="score">Score: 0</div>
-    <div id="startScreen">Click to Start</div>
-    <div id="car"></div>
+<h2>🚆 Ultimate Train Runner</h2>
+<h3>Score: <span id="score">0</span> | Coins: <span id="coins">0</span> | High Score: <span id="highScore">0</span></h3>
+
+<div id="game">
+  <div class="track"></div>
+  <div class="track"></div>
+  <div class="train" id="train"></div>
+
+  <div id="gameOver">
+    <h1>Game Over</h1>
+    <button onclick="restart()">Restart</button>
+  </div>
+
+  <div id="controls">
+  <button id="leftBtn">⬅</button>
+  <button id="rightBtn">➡</button>
+</div>
 </div>
 
 <script>
-    const gameArea = document.getElementById("gameArea");
-    const car = document.getElementById("car");
-    const scoreDisplay = document.getElementById("score");
-    const startScreen = document.getElementById("startScreen");
+let train = document.getElementById("train");
+let game = document.getElementById("game");
+let score = 0;
+let coins = 0;
+let speed = 4;
+let playing = true;
 
-    let keys = {};
-    let speed = 5;
-    let score = 0;
-    let gameRunning = false;
+let lanes = [25,145,265];
+let currentLane = 1;
 
-    document.addEventListener("keydown", e => keys[e.key] = true);
-    document.addEventListener("keyup", e => keys[e.key] = false);
+let highScore = localStorage.getItem("trainHighScore") || 0;
+document.getElementById("highScore").innerText = highScore;
 
-    startScreen.addEventListener("click", startGame);
+document.addEventListener("keydown", function(e){
+  if(e.key === "ArrowLeft" && currentLane>0){
+    currentLane--;
+    train.style.left = lanes[currentLane]+"px";
+  }
+  if(e.key === "ArrowRight" && currentLane<2){
+    currentLane++;
+    train.style.left = lanes[currentLane]+"px";
+  }
+});
 
-    function startGame() {
-        startScreen.style.display = "none";
-        gameRunning = true;
-        score = 0;
+function createObstacle(){
+  if(!playing) return;
 
-        for (let i = 0; i < 3; i++) {
-            let line = document.createElement("div");
-            line.classList.add("roadLine");
-            line.y = i * 150;
-            line.style.top = line.y + "px";
-            gameArea.appendChild(line);
-        }
+  let obs = document.createElement("div");
+  obs.classList.add("obstacle");
 
-        for (let i = 0; i < 3; i++) {
-            let enemy = document.createElement("div");
-            enemy.classList.add("enemy");
-            enemy.y = (i + 1) * -300;
-            enemy.style.left = Math.floor(Math.random() * 350) + "px";
-            enemy.style.top = enemy.y + "px";
-            gameArea.appendChild(enemy);
-        }
+  let lane = Math.floor(Math.random()*3);
+  obs.style.left = lanes[lane]+"px";
+  game.appendChild(obs);
 
-        window.requestAnimationFrame(playGame);
+  let move = setInterval(()=>{
+    if(!playing){clearInterval(move);return;}
+
+    obs.style.top = obs.offsetTop + speed +"px";
+
+    if(obs.offsetTop>460 && lane===currentLane){
+      gameOver();
     }
 
-    function moveLines() {
-        document.querySelectorAll(".roadLine").forEach(line => {
-            if (line.y >= 700) line.y = -100;
-            line.y += speed;
-            line.style.top = line.y + "px";
-        });
+    if(obs.offsetTop>600){
+      obs.remove();
+      score++;
+      document.getElementById("score").innerText=score;
+
+      if(score%5===0){
+        speed++;
+        toggleDayNight();
+      }
+
+      clearInterval(move);
+    }
+  },20);
+}
+
+if(/Mobi|Android/i.test(navigator.userAgent)){
+  document.getElementById("controls").style.display = "flex";
+}
+
+let startX = 0;
+
+game.addEventListener("touchstart", function(e){
+  startX = e.touches[0].clientX;
+});
+
+game.addEventListener("touchend", function(e){
+  let endX = e.changedTouches[0].clientX;
+  let diff = endX - startX;
+
+  if(diff > 50 && currentLane < 2){
+    currentLane++;
+    train.style.left = lanes[currentLane] + "px";
+  }
+
+  if(diff < -50 && currentLane > 0){
+    currentLane--;
+    train.style.left = lanes[currentLane] + "px";
+  }
+});
+
+function createCoin(){
+  if(!playing) return;
+
+  let coin = document.createElement("div");
+  coin.classList.add("coin");
+
+  let lane = Math.floor(Math.random()*3);
+  coin.style.left = lanes[lane]+20+"px";
+  game.appendChild(coin);
+
+  let move = setInterval(()=>{
+    coin.style.top = coin.offsetTop + speed +"px";
+
+    if(coin.offsetTop>470 && lane===currentLane){
+      coins++;
+      document.getElementById("coins").innerText=coins;
+      coin.remove();
+      clearInterval(move);
+      playSound();
     }
 
-    function moveEnemies() {
-        document.querySelectorAll(".enemy").forEach(enemy => {
-            if (isCollide(car, enemy)) {
-                endGame();
-            }
-
-            if (enemy.y >= 700) {
-                enemy.y = -300;
-                enemy.style.left = Math.floor(Math.random() * 350) + "px";
-            }
-
-            enemy.y += speed;
-            enemy.style.top = enemy.y + "px";
-        });
+    if(coin.offsetTop>600){
+      coin.remove();
+      clearInterval(move);
     }
+  },20);
+}
 
-    function isCollide(a, b) {
-        let aRect = a.getBoundingClientRect();
-        let bRect = b.getBoundingClientRect();
+function createRain(){
+  let drop = document.createElement("div");
+  drop.classList.add("rain");
+  drop.style.left = Math.random()*360+"px";
+  game.appendChild(drop);
+  setTimeout(()=>drop.remove(),500);
+}
 
-        return !(
-            aRect.bottom < bRect.top ||
-            aRect.top > bRect.bottom ||
-            aRect.right < bRect.left ||
-            aRect.left > bRect.right
-        );
-    }
+function toggleDayNight(){
+  if(document.body.style.background.includes("87CEEB")){
+    document.body.style.background="linear-gradient(#000022,#000)";
+  }else{
+    document.body.style.background="linear-gradient(#87CEEB,#4fa3f7)";
+  }
+}
 
-    function playGame() {
-        if (!gameRunning) return;
+function playSound(){
+  let audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
+  audio.play();
+}
 
-        moveLines();
-        moveEnemies();
+function gameOver(){
+  playing = false;
 
-        let carRect = car.getBoundingClientRect();
+  // Stop new objects
+  clearInterval(obstacleInterval);
+  clearInterval(coinInterval);
+  clearInterval(rainInterval);
 
-        if (keys["ArrowLeft"] && car.offsetLeft > 0) {
-            car.style.left = car.offsetLeft - speed + "px";
-        }
+  // Show Game Over screen
+  document.getElementById("gameOver").style.display = "flex";
 
-        if (keys["ArrowRight"] && car.offsetLeft < 350) {
-            car.style.left = car.offsetLeft + speed + "px";
-        }
+  // Save high score
+  if(score > highScore){
+    localStorage.setItem("trainHighScore", score);
+    document.querySelectorAll(".obstacle, .coin, .rain").forEach(el=>{
+  el.style.animation = "none";
+});
+  }
+}
 
-        score++;
-        scoreDisplay.innerText = "Score: " + score;
+function restart(){
+  location.reload();
+}
 
-        window.requestAnimationFrame(playGame);
-    }
-
-    function endGame() {
-        gameRunning = false;
-        startScreen.innerText = "Game Over! Click to Restart";
-        startScreen.style.display = "flex";
-        document.querySelectorAll(".roadLine, .enemy").forEach(el => el.remove());
-    }
+let obstacleInterval = setInterval(createObstacle,1500);
+let coinInterval = setInterval(createCoin,2000);
+let rainInterval = setInterval(createRain,100);
 </script>
 
 </body>
 </html>
+
+
 
