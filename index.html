@@ -1,299 +1,296 @@
+```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Ultimate Train Runner</title>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Car Drive</title>
 <style>
-body{
-  margin:0;
-  overflow:hidden;
-  font-family:Arial;
-  text-align:center;
-  background:linear-gradient(#87CEEB,#4fa3f7);
-  transition:0.5s;
-}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; user-select: none; }
+  canvas { display: block; }
 
-#game{
-  width:360px;
-  height:600px;
-  margin:auto;
-  background:#222;
-  position:relative;
-  overflow:hidden;
-  border:5px solid black;
-}
+  /* HUD */
+  #hud {
+    position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%);
+    color: #fff; text-align: center; pointer-events: none; z-index: 10;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+  }
+  #hud .speed { font-size: 52px; font-weight: bold; letter-spacing: 3px; font-variant-numeric: tabular-nums; }
+  #hud .unit { font-size: 13px; opacity: 0.5; }
+  #hud .gear-indicator { font-size: 20px; margin-top: 2px; color: #ff6; font-weight: bold; }
 
-.track{
-  position:absolute;
-  width:4px;
-  height:100%;
-  background:white;
-}
+  /* RPM Bar */
+  #rpm-bar {
+    position: fixed; bottom: 115px; left: 50%; transform: translateX(-50%);
+    width: 180px; height: 6px; background: rgba(0,0,0,0.5);
+    border-radius: 3px; z-index: 10; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #rpm-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4f4, #ff4, #f44); border-radius: 3px; transition: width 0.1s; }
 
-.track:nth-child(1){left:120px;}
-.track:nth-child(2){left:240px;}
+  /* Controls overlay */
+  #controls-info {
+    position: fixed; top: 15px; left: 15px; color: #fff;
+    font-size: 11px; opacity: 0.4; line-height: 1.6;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    pointer-events: none; z-index: 10;
+  }
 
-.train{
-  width:70px;
-  height:110px;
-  position:absolute;
-  bottom:20px;
-  left:145px;
-  background:linear-gradient(red,darkred);
-  border-radius:15px;
-  box-shadow:0 0 20px red;
-}
+  /* Dashboard Panel */
+  #dashboard {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 110px;
+    background: linear-gradient(180deg, rgba(15,15,25,0.85), rgba(10,10,20,0.95));
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255,255,255,0.08);
+    z-index: 10; display: flex; align-items: center; justify-content: center; gap: 20px;
+    padding: 0 20px;
+  }
 
-#controls{
-  position:absolute;
-  bottom:10px;
-  width:100%;
-  display:none; /* hidden by default */
-  justify-content:space-between;
-}
+  /* Steering Wheel */
+  #steering-container {
+    position: relative; width: 100px; height: 100px; flex-shrink: 0;
+  }
+  #steering-wheel {
+    width: 100px; height: 100px; border: 4px solid #888;
+    border-radius: 50%; position: relative;
+    background: radial-gradient(circle, #333 30%, #222 70%);
+    box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.4);
+    cursor: grab; transition: transform 0.05s;
+  }
+  #steering-wheel::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: radial-gradient(circle, #555, #333);
+    border: 2px solid #666;
+  }
+  #steering-wheel .spoke {
+    position: absolute; background: #666; border-radius: 2px;
+  }
+  #steering-wheel .spoke-h { width: 100%; height: 4px; top: 50%; left: 0; transform: translateY(-50%); }
+  #steering-wheel .spoke-v { width: 4px; height: 50%; top: 50%; left: 50%; transform: translateX(-50%); }
+  #steer-label { text-align: center; color: #666; font-size: 10px; margin-top: 2px; }
 
-#controls button{
-  font-size:25px;
-  padding:10px 20px;
-}
+  /* Pedals */
+  .pedal-group { display: flex; gap: 10px; align-items: flex-end; }
+  .pedal-container { display: flex; flex-direction: column; align-items: center; }
+  .pedal {
+    width: 52px; height: 70px; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: bold; color: #fff;
+    transition: all 0.1s; position: relative; overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.15);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .pedal .fill-level {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    transition: height 0.1s; opacity: 0.3;
+  }
+  .pedal span { position: relative; z-index: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  #pedal-gas {
+    background: linear-gradient(180deg, #1a3a1a, #0d1f0d);
+  }
+  #pedal-gas .fill-level { background: #4f4; }
+  #pedal-gas:active, #pedal-gas.active {
+    background: linear-gradient(180deg, #2a5a2a, #1a3a1a);
+    transform: translateY(2px); box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  }
+  #pedal-brake {
+    background: linear-gradient(180deg, #3a1a1a, #1f0d0d);
+  }
+  #pedal-brake .fill-level { background: #f44; }
+  #pedal-brake:active, #pedal-brake.active {
+    background: linear-gradient(180deg, #5a2a2a, #3a1a1a);
+    transform: translateY(2px);
+  }
+  #pedal-handbrake {
+    width: 42px; height: 55px;
+    background: linear-gradient(180deg, #3a2a1a, #1f150d);
+  }
+  #pedal-handbrake .fill-level { background: #fa4; }
+  #pedal-handbrake:active, #pedal-handbrake.active {
+    background: linear-gradient(180deg, #5a4a2a, #3a2a1a);
+    transform: translateY(2px);
+  }
+  .pedal-label { color: #666; font-size: 9px; margin-top: 3px; text-transform: uppercase; letter-spacing: 1px; }
 
-.obstacle{
-  width:70px;
-  height:110px;
-  background:linear-gradient(yellow,orange);
-  position:absolute;
-  top:-120px;
-  border-radius:10px;
-}
+  /* Gear Shifter */
+  #gear-box {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: rgba(255,255,255,0.04); border-radius: 12px; padding: 8px 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  #gear-box .title { color: #666; font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+  .gear-btns { display: flex; gap: 5px; }
+  .gear-btn {
+    width: 38px; height: 34px; border-radius: 6px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: bold; color: #888;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    transition: all 0.15s;
+  }
+  .gear-btn:hover { background: rgba(255,255,255,0.1); color: #ccc; }
+  .gear-btn.active { background: rgba(68,170,255,0.2); border-color: #4af; color: #4af; box-shadow: 0 0 10px rgba(68,170,255,0.2); }
 
-.coin{
-  width:30px;
-  height:30px;
-  background:gold;
-  border-radius:50%;
-  position:absolute;
-  top:-50px;
-  box-shadow:0 0 10px yellow;
-}
+  /* Tachometer */
+  #tacho {
+    width: 90px; height: 90px; border-radius: 50%;
+    background: radial-gradient(circle, #1a1a1a, #111);
+    border: 3px solid #444; position: relative;
+    box-shadow: 0 0 15px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+  }
+  #tacho-needle {
+    position: absolute; bottom: 50%; left: 50%;
+    width: 2px; height: 35px; background: #f44;
+    transform-origin: bottom center; transform: rotate(-120deg);
+    border-radius: 1px; transition: transform 0.1s;
+  }
+  #tacho-center {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 10px; height: 10px; border-radius: 50%; background: #f44;
+  }
+  #tacho-label {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: #666; font-size: 8px; letter-spacing: 1px;
+  }
+  .tacho-mark {
+    position: absolute; top: 8px; left: 50%; width: 1px; height: 8px;
+    background: #555; transform-origin: 0 37px;
+  }
 
-.rain{
-  position:absolute;
-  width:2px;
-  height:15px;
-  background:lightblue;
-  animation:rainFall 0.5s linear infinite;
-}
+  /* Top buttons */
+  .top-btn {
+    position: fixed; z-index: 12;
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+    color: #fff; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; backdrop-filter: blur(8px); transition: all 0.2s;
+  }
+  .top-btn:hover { background: rgba(255,255,255,0.2); }
+  #weather-btn { top: 15px; right: 15px; }
+  #vehicle-toggle { top: 50px; right: 15px; }
+  #camera-btn { top: 85px; right: 15px; }
 
-@keyframes rainFall{
-  from{transform:translateY(-20px);}
-  to{transform:translateY(600px);}
-}
+  /* Collision flash */
+  #collision-flash {
+    position: fixed; inset: 0; background: rgba(255,30,0,0.25);
+    pointer-events: none; z-index: 8; opacity: 0; transition: opacity 0.12s;
+  }
 
-#gameOver{
-  position:absolute;
-  width:100%;
-  height:100%;
-  background:rgba(0,0,0,0.8);
-  color:white;
-  display:none;
-  justify-content:center;
-  align-items:center;
-  flex-direction:column;
-}
+  /* Vehicle menu */
+  #vehicle-menu {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    z-index: 50; background: rgba(10,10,30,0.94); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 16px;
+    padding: 28px; display: none; min-width: 420px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  #vehicle-menu h2 { color: #fff; text-align: center; margin-bottom: 18px; font-size: 20px; }
+  .vehicle-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .vehicle-card {
+    background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 14px; cursor: pointer; text-align: center;
+    transition: all 0.2s; color: #fff;
+  }
+  .vehicle-card:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.25); }
+  .vehicle-card.selected { border-color: #4af; background: rgba(68,170,255,0.12); }
+  .vehicle-card .icon { font-size: 32px; margin-bottom: 6px; }
+  .vehicle-card .name { font-size: 14px; font-weight: bold; }
+  .vehicle-card .stats { font-size: 10px; opacity: 0.5; margin-top: 4px; line-height: 1.4; }
+  .stat-bar { height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 2px; overflow: hidden; }
+  .stat-fill { height: 100%; border-radius: 2px; }
+  #vehicle-go {
+    display: block; margin: 16px auto 0; padding: 10px 36px;
+    background: linear-gradient(135deg, #4af, #28d); border: none;
+    color: #fff; font-size: 15px; font-weight: bold; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  #vehicle-go:hover { transform: scale(1.05); }
 
-button{
-  padding:8px 15px;
-  margin-top:10px;
-  font-size:18px;
-  cursor:pointer;
-}
+  /* Minimap */
+  #minimap {
+    position: fixed; bottom: 125px; right: 15px; width: 120px; height: 120px;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.4); overflow: hidden; z-index: 10;
+    backdrop-filter: blur(4px);
+  }
+  #minimap canvas { width: 100%; height: 100%; border-radius: 50%; }
+
+  /* Health bar */
+  #health-box {
+    position: fixed; bottom: 125px; left: 15px; z-index: 10;
+  }
+  #health-label { color: #888; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; }
+  #health-bar {
+    width: 120px; height: 6px; background: rgba(0,0,0,0.4);
+    border-radius: 3px; overflow: hidden; margin-top: 3px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  #health-fill {
+    height: 100%; width: 100%; background: linear-gradient(90deg, #f44, #ff4, #4f4);
+    border-radius: 3px; transition: width 0.3s;
+  }
+
+  /* Loading */
+  #loading {
+    position: fixed; inset: 0; background: linear-gradient(135deg, #080818, #12122e);
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: #fff; z-index: 100; font-size: 26px;
+  }
+  #loading .sub { font-size: 13px; opacity: 0.35; margin-top: 10px; }
+  #loading .bar { width: 200px; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px; margin-top: 18px; overflow: hidden; }
+  #loading .bar-fill { height: 100%; width: 0%; background: #4af; border-radius: 2px; transition: width 0.4s; }
+
+  /* Turn signals */
+  #turn-signals {
+    position: fixed; top: 50%; left: 0; right: 0; z-index: 9;
+    pointer-events: none; display: flex; justify-content: space-between; padding: 0 30px;
+    transform: translateY(-50%);
+  }
+  .turn-arrow { font-size: 40px; opacity: 0; transition: opacity 0.15s; color: #fa0; text-shadow: 0 0 15px #fa0; }
+  .turn-arrow.on { opacity: 0.7; }
 </style>
 </head>
 <body>
-
-<h2>🚆 Ultimate Train Runner</h2>
-<h3>Score: <span id="score">0</span> | Coins: <span id="coins">0</span> | High Score: <span id="highScore">0</span></h3>
-
-<div id="game">
-  <div class="track"></div>
-  <div class="track"></div>
-  <div class="train" id="train"></div>
-
-  <div id="gameOver">
-    <h1>Game Over</h1>
-    <button onclick="restart()">Restart</button>
-  </div>
-
-  <div id="controls">
-  <button id="leftBtn">⬅</button>
-  <button id="rightBtn">➡</button>
-</div>
+<div id="loading">
+  🏎️ 3D Car Drive
+  <div class="sub">Building your world...</div>
+  <div class="bar"><div class="bar-fill" id="load-bar"></div></div>
 </div>
 
-<script>
-let train = document.getElementById("train");
-let game = document.getElementById("game");
-let score = 0;
-let coins = 0;
-let speed = 4;
-let playing = true;
+<div id="collision-flash"></div>
+<div id="turn-signals">
+  <div class="turn-arrow" id="turn-left">◀</div>
+  <div class="turn-arrow" id="turn-right">▶</div>
+</div>
 
-let lanes = [25,145,265];
-let currentLane = 1;
+<div id="controls-info">
+  W/↑ Gas &nbsp; S/↓ Brake &nbsp; A/← D/→ Steer<br>
+  Space Handbrake &nbsp; C Camera &nbsp; T Weather<br>
+  V Vehicles &nbsp; R Reset &nbsp; F/G Gear
+</div>
 
-let highScore = localStorage.getItem("trainHighScore") || 0;
-document.getElementById("highScore").innerText = highScore;
+<div id="hud">
+  <div class="speed" id="speed-val">0</div>
+  <div class="unit">km/h</div>
+  <div class="gear-indicator" id="gear-hud">D</div>
+</div>
+<div id="rpm-bar"><div id="rpm-fill"></div></div>
 
-document.addEventListener("keydown", function(e){
-  if(e.key === "ArrowLeft" && currentLane>0){
-    currentLane--;
-    train.style.left = lanes[currentLane]+"px";
-  }
-  if(e.key === "ArrowRight" && currentLane<2){
-    currentLane++;
-    train.style.left = lanes[currentLane]+"px";
-  }
-});
+<div id="health-box">
+  <div id="health-label">Health</div>
+  <div id="health-bar"><div id="health-fill"></div></div>
+</div>
 
-function createObstacle(){
-  if(!playing) return;
+<div id="minimap"><canvas id="minimap-canvas" width="120" height="120"></canvas></div>
 
-  let obs = document.createElement("div");
-  obs.classList.add("obstacle");
+<button class="top-btn" id="weather-btn" onclick="cycleWeather()">🌤️ Clear</button>
+<button class="top-btn" id="vehicle-toggle" onclick="toggleVehicleMenu()">🚗 Vehicle</button>
+<button class="top-btn" id="camera-btn" onclick="nextCamera()">📷 Chase</button>
 
-  let lane = Math.floor(Math.random()*3);
-  obs.style.left = lanes[lane]+"px";
-  game.appendChild(obs);
-
-  let move = setInterval(()=>{
-    if(!playing){clearInterval(move);return;}
-
-    obs.style.top = obs.offsetTop + speed +"px";
-
-    if(obs.offsetTop>460 && lane===currentLane){
-      gameOver();
-    }
-
-    if(obs.offsetTop>600){
-      obs.remove();
-      score++;
-      document.getElementById("score").innerText=score;
-
-      if(score%5===0){
-        speed++;
-        toggleDayNight();
-      }
-
-      clearInterval(move);
-    }
-  },20);
-}
-
-if(/Mobi|Android/i.test(navigator.userAgent)){
-  document.getElementById("controls").style.display = "flex";
-}
-
-let startX = 0;
-
-game.addEventListener("touchstart", function(e){
-  startX = e.touches[0].clientX;
-});
-
-game.addEventListener("touchend", function(e){
-  let endX = e.changedTouches[0].clientX;
-  let diff = endX - startX;
-
-  if(diff > 50 && currentLane < 2){
-    currentLane++;
-    train.style.left = lanes[currentLane] + "px";
-  }
-
-  if(diff < -50 && currentLane > 0){
-    currentLane--;
-    train.style.left = lanes[currentLane] + "px";
-  }
-});
-
-function createCoin(){
-  if(!playing) return;
-
-  let coin = document.createElement("div");
-  coin.classList.add("coin");
-
-  let lane = Math.floor(Math.random()*3);
-  coin.style.left = lanes[lane]+20+"px";
-  game.appendChild(coin);
-
-  let move = setInterval(()=>{
-    coin.style.top = coin.offsetTop + speed +"px";
-
-    if(coin.offsetTop>470 && lane===currentLane){
-      coins++;
-      document.getElementById("coins").innerText=coins;
-      coin.remove();
-      clearInterval(move);
-      playSound();
-    }
-
-    if(coin.offsetTop>600){
-      coin.remove();
-      clearInterval(move);
-    }
-  },20);
-}
-
-function createRain(){
-  let drop = document.createElement("div");
-  drop.classList.add("rain");
-  drop.style.left = Math.random()*360+"px";
-  game.appendChild(drop);
-  setTimeout(()=>drop.remove(),500);
-}
-
-function toggleDayNight(){
-  if(document.body.style.background.includes("87CEEB")){
-    document.body.style.background="linear-gradient(#000022,#000)";
-  }else{
-    document.body.style.background="linear-gradient(#87CEEB,#4fa3f7)";
-  }
-}
-
-function playSound(){
-  let audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
-  audio.play();
-}
-
-function gameOver(){
-  playing = false;
-
-  // Stop new objects
-  clearInterval(obstacleInterval);
-  clearInterval(coinInterval);
-  clearInterval(rainInterval);
-
-  // Show Game Over screen
-  document.getElementById("gameOver").style.display = "flex";
-
-  // Save high score
-  if(score > highScore){
-    localStorage.setItem("trainHighScore", score);
-    document.querySelectorAll(".obstacle, .coin, .rain").forEach(el=>{
-  el.style.animation = "none";
-});
-  }
-}
-
-function restart(){
-  location.reload();
-}
-
-let obstacleInterval = setInterval(createObstacle,1500);
-let coinInterval = setInterval(createCoin,2000);
-let rainInterval = setInterval(createRain,100);
-</script>
-
-</body>
-</html>
-
-
-
+<div id="vehicle-menu">
+  <h2>🚗 SELECT VEHICLE</h2>
+  <div class="vehicle-grid" id="vehicle-grid"></div>
+  <butto
+...(truncated)...
